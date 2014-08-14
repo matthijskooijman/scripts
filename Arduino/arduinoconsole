@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# Copyright 2014 Matthijs Kooijman <matthijs@stdin.nl>
+#
+# Permission is hereby granted, free of charge, to anyone obtaining a
+# copy of this document and accompanying files, to do whatever they want
+# with them without any restriction, including, but not limited to,
+# copying, modification and redistribution.
+#
+# NO WARRANTY OF ANY KIND IS PROVIDED.
+
+# This scripts starts minicom as a serial console for an Arduino board.
+# It also automatically sets up logging to the ~/minicom.cap.ttyACMx
+# file. It can be used to automatically stop and restart the serial
+# console during uploads, see the accompanied Makefile for an example.
+#
+# Alternatively, you can quit minicom manually and then restart it by
+# just pressing enter.
+
+if [ -n "$1" ]; then
+	DEVICE=ttyACM$1
+else
+	DEVICE=ttyACM0
+fi
+LOG=${HOME}/minicom.cap.${DEVICE}
+PIDFILE=${HOME}/.arduino/console.${DEVICE}.pid
+
+while true; do
+	rm -f $LOG
+	minicom -D /dev/$DEVICE -C $LOG arduino
+	# Wait for enter or USR1
+	(trap exit USR1; sh -c 'echo $PPID' > $PIDFILE; read foo)
+done
