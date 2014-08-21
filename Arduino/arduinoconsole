@@ -22,12 +22,17 @@ if [ -n "$1" ]; then
 else
 	DEVICE=ttyACM0
 fi
+if [ -n "$2" ]; then
+	BAUD=$2
+else
+	BAUD=115200
+fi
 LOG=${HOME}/minicom.cap.${DEVICE}
 PIDFILE=${HOME}/.arduino/console.${DEVICE}.pid
 
 while true; do
 	rm -f $LOG
-	minicom -D /dev/$DEVICE -C $LOG arduino
+	minicom -D /dev/$DEVICE -C $LOG -b $BAUD
 	# Wait for enter or USR1
 	(trap exit USR1; sh -c 'echo $PPID' > $PIDFILE; read foo)
 done
