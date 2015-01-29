@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# If no .elf file was specified, try to find one
+if [ ! -e "$1" ]; then
+	set -- *.elf
+fi
+if [ ! -e "$1" ]; then
+	set -- build/*.elf
+fi
+
+# Run avarice using a JTAGICE3
+pkill avarice
+#avarice --detach --debug -3 :4244 2> avarice.log || exit 1 &
+avarice --detach -3 :4244 || exit 1 &
+
+# Run gdb and let it connect to avarice
+avr-gdb -ex 'target extended-remote localhost:4244' -ex 'layout src' -ex 'layout regs' "$@"
