@@ -1,0 +1,49 @@
+#!/bin/bash
+
+filter() {
+  awk "\
+    BEGIN { FS=\"\\t\"; OFS=\"\\t\"; }
+    /^[0-9a-z]+ <[^>]+>:$/ { sub(/^[0-9a-f]* /,\"\") };
+    /^\s* [0-9a-z]+:/ {
+      # Remove 1a2: prefixes
+      \$1=\"\";
+      # For calls/jumps/etc, remove all addresses. cbz etc. are for ARM
+      # instead of AVR
+      if (\$3 ~ /^ *(rjmp|jmp|rcall|call|br..)$/ ||
+          \$3 ~ /^ *(cbz|cbnz|bl|bcc|bmi|b|ble|bls|bne|bhi|beq|bgt|bcs|blt|bge|bpl|bleq)(\\.n|\\.w|)$/) {
+        # 9ac:      0c 94 63 40     jmp 0x80c6    ; 0x80c6 # <allReport()+0x12ab>
+        # e0c:      02 c0           rjmp    .+4   ; 0xe12 # <__do_copy_data>
+        # 4a2:      b14b            cbz     r3, 4b8      <frame_dummy+0x20>
+        gsub(/[0-9a-f]/, \"x\", \$2);
+        gsub(/./, \" \", \$4);
+        sub(/^; 0x[0-9a-f]+ /, \"; \", \$5);
+        sub(/\\+0x[0-9a-f]+>$/, \"+0x....>\", \$5);
+      }
+      # ARM uses ldr to load addresses for relative jumps, meaning we
+      # can leave the offset, just have to clear the absolute address.
+      if (\$3 ~ / *(ldr|ldr.w|add)$/ && \$4 ~ /pc/) {
+        # 1d4:      4b4a            ldr     r3, [pc, #296]  ; (300 <ResetHandler+0x144>)
+        # 958:      f8df 80a0       ldr.w   r8, [pc, #160]  ; 9fc <_ZN6IRrecv10decodeSonyEP14decode_results+0xa8>
+
+        sub(/\\+0x[0-9a-f]+>/, \"+0x....>\", \$5);
+        sub(/^; \\([0-9a-f]+ /, \"; (\", \$5);
+        sub(/^; [0-9a-f]+ /, \"; \", \$5);
+      }
+    }
+    { print }" | expand
+}
+
+asm() {
+	if file $1 | grep ELF >/dev/null; then
+		avr-objdump -S $1
+	else
+		# assume the file is output of avr-objdump already
+		cat $1
+	fi
+}
+
+FIRST="$1"
+SECOND="$2"
+shift; shift
+
+grc --colour=on diff -u "$@" <(asm "$FIRST" | filter) <(asm "$SECOND" | filter)
