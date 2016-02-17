@@ -35,7 +35,7 @@ filter() {
 
 asm() {
 	if file $1 | grep ELF >/dev/null; then
-		avr-objdump -S $1
+		avr-objdump --demangle -d $1
 	else
 		# assume the file is output of avr-objdump already
 		cat $1
