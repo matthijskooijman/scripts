@@ -46,4 +46,4 @@ FIRST="$1"
 SECOND="$2"
 shift; shift
 
-grc --colour=on diff -u "$@" <(asm "$FIRST" | filter) <(asm "$SECOND" | filter)
+grc --colour=on diff -F '^<.*>:$' -u "$@" <(asm "$FIRST" | filter) <(asm "$SECOND" | filter)
