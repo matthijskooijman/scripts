@@ -47,8 +47,9 @@ extern "C" {
 	 * When this value reaches 0, the stack will start overflowing
 	 * the heap, even though memory might still be malloc'd. */
 	static size_t memleft() {
-		extern void *__brkval, *__heap_start;
-		return SP - (size_t)(__brkval ?: __heap_start);
+		extern void *__brkval;
+		extern int __heap_start;
+		return SP - (size_t)(__brkval ?: &__heap_start);
 	}
 
 #ifndef __AVR_3_BYTE_PC__
