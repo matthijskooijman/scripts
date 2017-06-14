@@ -3,7 +3,10 @@
 filter() {
   awk "\
     BEGIN { FS=\"\\t\"; OFS=\"\\t\"; }
-    /^[0-9a-z]+ <[^>]+>:$/ { sub(/^[0-9a-f]* /,\"\") };
+    /^[0-9a-z]+ <[^>]+>:$/ { # Function headers
+      sub(/^[0-9a-f]* /,\"\");
+      sub(/constprop\.[0-9]+/, \"constprop.(...)\");
+    };
     /^\s* [0-9a-z]+:/ {
       # Remove 1a2: prefixes
       \$1=\"\";
@@ -18,6 +21,7 @@ filter() {
         gsub(/./, \" \", \$4);
         sub(/^; 0x[0-9a-f]+ /, \"; \", \$5);
         sub(/\\+0x[0-9a-f]+>$/, \"+0x....>\", \$5);
+        sub(/constprop\.[0-9]+/, \"constprop.(...)\", \$5);
       }
       # ARM uses ldr to load addresses for relative jumps, meaning we
       # can leave the offset, just have to clear the absolute address.
