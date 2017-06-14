@@ -37,8 +37,9 @@ filter() {
 	# Strip the address and flags, but keep the section, size and
 	# symbol name. Make them separated by tabs, so awk can split on
 	# that (without also splitting on any spaces inside the symbol
-	# name).
-	sed -r 's/^[0-9a-f]+ ....... ([^	]*)	([0-9a-f]+) (.*)$/\1	\2	\3/' |
+	# name). Strip any ".hidden" from the symbol name (seems
+	# lto-related)
+	sed -r 's/^[0-9a-f]+ ....... ([^	]*)	([0-9a-f]+) (\.hidden )?(.*)$/\1	\2	\4/' |
 	# Shuffle the order of fields (for sorting and easy reading)
 	# Also strip any .1234 suffix from the symbol name, which seems
 	# to be added with lto, but not without
