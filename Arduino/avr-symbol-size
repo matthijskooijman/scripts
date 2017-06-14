@@ -1,0 +1,34 @@
+#!/bin/sh
+# Pass a .elf file to show its symbols, sorted by size. Optionally pass
+# a section to limit to that section only (e.g. .text for flash, .bss
+# for zero-initialized RAM, .data for initialized RAM).
+
+if [ "$#" = 2 ]; then
+	SECTION=$1
+	shift;
+else
+	SECTION='[^	]*'
+fi
+
+if [ "$#" != 1 ]; then
+	echo "Usage: $0 [section] file"
+	exit 1
+fi
+
+filter() {
+	# Drop anything but the request section
+	grep -E "^[0-9a-f]+ ....... $SECTION	" |
+	# Drop debugging symbols
+	grep -Ev '^[0-9a-f]+ .....d. ' |
+	# Strip the address and flags, but keep the section, size and
+	# symbol name. Make them separated by tabs, so awk can split on
+	# that (without also splitting on any spaces inside the symbol
+	# name).
+	sed -r 's/^[0-9a-f]+ ....... ([^	]*)	([0-9a-f]+) (.*)$/\1	\2	\3/' |
+	# Shuffle the order of fields (for sorting and easy reading)
+	awk -F'\t' '{ printf("%8s %s %s\n", $1, $2, $3); }' |
+	sort
+}
+
+avr-objdump -t --demangle "$1" |  filter
+
