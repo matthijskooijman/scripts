@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# This script takes care of:
+#  - Creating an SSH connection to a remote server
+#  - Running a remote command to attach to an existing tmux session
+#    (though any other interactive command is fine too).
+#  - Enable SSH agent forwarding (handled by SSH natively), GPG agent
+#    forwarding (this script figures out the paths to use using gpgconf)
+#    and auxiliary TCP forwarding (See $FORWARD_OPTIONS below).
+#  - Kill any previous session that is still running serverside, to
+#    prevent the port forwards failing because ports are still in use.
+#  - Remove the previous GPG forwarding socket serverside, since sshd
+#    does not appear to do so when it quits.
+#  - When the connection breaks or the remote command does not return
+#    success, you can reconnect by just pressing enter.
+#
+# To do this, a single SSH ControlMaster session is started, over which
+# multiple commands are run in turn. Multiple commands are needed, since
+# any previous sessions must be cleaned up *before* trying to set up new
+# port forwards, which could otherwise fail. By using ControlMaster,
+# SSH only needs a single TCP connection and needs to authenticate only
+# once.
+# If this script is invoked multiple times, each invocation uses its own
+# ControlPath, so they should not interfere with each other client-side
+# (but the latter will kill the former server-side, of course).
+
+# Work around https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=785219
+if [ "$TERM" = "stterm-256color" ]; then
+    TERM=st-256color;
+fi
+
+# Hostname or entry in .ssh/config to connect to
+HOST=tika-login
+# Any options to be passed to the final, forwarding ssh connection
+FORWARD_OPTIONS="-R 2222:localhost:22"
+# Remoet command to be passed to the final, forwarding ssh connection
+REMOTE_COMMAND="bin/attach"
+# SSH ControlMaster path for connection sharing. Includes the current
+# PID to make sure it is unique, even if an existing session is already
+# running.
+CONTROLPATH="$XDG_RUNTIME_DIR/ssh/tika-login.socket.$$"
+# PIDFile to be created remotely to allow killing lingering older
+# sessions, to cleanup any listening ports
+REMOTE_PIDFILE='$XDG_RUNTIME_DIR/ssh/inet.pid'
+
+# SSH command to use
+SSH="ssh $HOST -o ControlPath=$CONTROLPATH -o ControlMaster=auto"
+
+# Make sure the controlpath directory exists
+mkdir -p "$(dirname $CONTROLPATH)"
+
+cleanup() {
+    $SSH -q -O exit
+    rm -f "$CONTROLPATH"
+}
+trap cleanup EXIT
+
+# Run cleanup, just in case the control socket wasn't cleaned up
+# properly and we end up re-using the same name
+cleanup
+
+while true; do
+    # Start a new control master, that does not execute any commands
+    # (-N) and goes to the background after authentication (-f). All
+    # subsequent ssh commands reuse this same connection. It autoquits
+    # after some seconds idle time (ControlPersist=10).
+    if $SSH -A -N -f -o ControlMaster=yes -o ControlPersist=10; then
+        # Figure out local and remote GPG socket paths
+        LOCAL_GPG_SOCKET=$(gpgconf --list-dir agent-extra-socket)
+        REMOTE_GPG_SOCKET=$($SSH gpgconf --list-dir agent-socket)
+
+        # Kill any previous sshd control master still running
+        # remotely, to clean up forwarded listening ports, and
+        # remove any forwarded gpg socket (which sshd does not).
+        # While we're there, prepare the pidfile directory
+        $SSH [ -f "$REMOTE_PIDFILE" ] \&\& \
+             pkill -F "$REMOTE_PIDFILE" \; \
+             rm -f "$REMOTE_PIDFILE" \; \
+             rm -f "$REMOTE_GPG_SOCKET" \; \
+             mkdir -p "\$(dirname \"$REMOTE_PIDFILE\")"
+
+        # Store the PID of the new control master connection and run the
+        # actual command. This also sets up all port forwardings, except
+        # for agent forwarding (which can only be set up on the master
+        # connection, see https://bugzilla.mindrot.org/show_bug.cgi?id=2621)
+        if $SSH -t $FORWARD_OPTIONS \
+                -o "RemoteForward=$REMOTE_GPG_SOCKET $LOCAL_GPG_SOCKET" \
+                -o ExitOnForwardFailure=yes \
+                 echo "\$PPID" \> "$REMOTE_PIDFILE" \; \
+                "$REMOTE_COMMAND"
+        then
+            # On a normal exit, break out of the reply loop
+            break;
+        fi
+    fi
+
+    echo "Press enter to reconnect"
+    if ! read; then # Wait for an enter so error can be read
+        echo "Read returned $?. Exiting"
+        exit 1;
+    fi
+done
