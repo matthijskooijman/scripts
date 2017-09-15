@@ -80,10 +80,11 @@ while true; do
              mkdir -p "\$(dirname \"$REMOTE_PIDFILE\")"
 
         # Store the PID of the new control master connection and run the
-        # actual command. This also sets up all port forwardings, except
-        # for agent forwarding (which can only be set up on the master
-        # connection, see https://bugzilla.mindrot.org/show_bug.cgi?id=2621)
-        if $SSH -t $FORWARD_OPTIONS \
+        # actual command. This also sets up all port forwardings. Note
+        # that the -A option must be passed to both this connection and
+        # the original master connection for it to work somehow, see
+        # https://bugzilla.mindrot.org/show_bug.cgi?id=2621
+        if $SSH -A -t $FORWARD_OPTIONS \
                 -o "RemoteForward=$REMOTE_GPG_SOCKET $LOCAL_GPG_SOCKET" \
                 -o ExitOnForwardFailure=yes \
                  echo "\$PPID" \> "$REMOTE_PIDFILE" \; \
