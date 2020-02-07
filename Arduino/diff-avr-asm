@@ -1,11 +1,21 @@
 #!/bin/bash
 
+# This script accepts two files (.elf and/or avr-objdump output) and
+# creates a diff of them. The dissassembly is preprocessed to remove a
+# lot of absolute addresses, in order to minimize the noise in the diff
+# due to reordered code.
+#
+# This script was originally written for AVR assembler, but also
+# supports ARM assembler by now.
+
 filter() {
   awk "\
     BEGIN { FS=\"\\t\"; OFS=\"\\t\"; }
-    /^[0-9a-z]+ <[^>]+>:$/ { # Function headers
+    /^[0-9a-z]+ <.+>:$/ { # Function headers
       sub(/^[0-9a-f]* /,\"\");
       sub(/constprop\.[0-9]+/, \"constprop.(...)\");
+      sub(/\[clone \.lto_priv.[0-9]+\]/, \"[clone .lto-priv.nnn]\");
+      sub(/\[clone \.isra.[0-9]+\]/, \"[clone .isra.nnn]\");
     };
     /^\s* [0-9a-z]+:/ {
       # Remove 1a2: prefixes
@@ -17,15 +27,31 @@ filter() {
         # 9ac:      0c 94 63 40     jmp 0x80c6    ; 0x80c6 # <allReport()+0x12ab>
         # e0c:      02 c0           rjmp    .+4   ; 0xe12 # <__do_copy_data>
         # 4a2:      b14b            cbz     r3, 4b8      <frame_dummy+0x20>
+        # 8ac:      09 f4           brne    .+2             ; 0x8b0 <schedRx12.lto_priv.156+0x50>
+
         gsub(/[0-9a-f]/, \"x\", \$2);
-        gsub(/./, \" \", \$4);
-        sub(/^; 0x[0-9a-f]+ /, \"; \", \$5);
+        # instruction arguments use uppercase hex for some reason
+        gsub(/0x[0-9a-f]+/, \"0x....\", \$4);
+        sub(/^; 0x[0-9a-f]+ /, \"; 0x....\", \$5);
         sub(/\\+0x[0-9a-f]+>$/, \"+0x....>\", \$5);
         sub(/constprop\.[0-9]+/, \"constprop.(...)\", \$5);
+        sub(/\.lto_priv.[0-9]+/, \".lto-priv.nnn\", \$5);
+        sub(/\[clone \.isra.[0-9]+\]/, \"[clone .isra.nnn]\", \$5);
+      }
+      # For loads and stores, remove addresses but leave registers
+      if (\$3 ~ /^ *(lds|sts)$/) {
+        # 123:       90 91 32 02     lds     r25, 0x0232     ; 0x800232 <SoftwareSerial::_receive_buffer_head>
+        # 6ec:       10 92 93 05     sts     0x0593, r1      ; 0x800593 <twi_state.lto_priv.131>
+
+        gsub(/[0-9a-f]/, \"x\", \$2);
+        # Arguments to these instructions use uppercase hex for some reason
+        gsub(/0x[0-9A-F]+/, \"0x....\", \$4);
+        sub(/^; +0x[0-9a-f]+/, \"; 0x....\", \$5);
+        sub(/\.lto_priv.[0-9]+/, \".lto-priv.nnn\", \$5);
       }
       # ARM uses ldr to load addresses for relative jumps, meaning we
       # can leave the offset, just have to clear the absolute address.
-      if (\$3 ~ / *(ldr|ldr.w|add)$/ && \$4 ~ /pc/) {
+      if (\$3 ~ / *(ldr.*|add)$/ && \$4 ~ /pc/) {
         # 1d4:      4b4a            ldr     r3, [pc, #296]  ; (300 <ResetHandler+0x144>)
         # 958:      f8df 80a0       ldr.w   r8, [pc, #160]  ; 9fc <_ZN6IRrecv10decodeSonyEP14decode_results+0xa8>
 
