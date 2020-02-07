@@ -47,9 +47,9 @@ filter() {
 	# lto-related)
 	sed -r 's/^[0-9a-f]+ ....... ([^	]*)	([0-9a-f]+) (\.hidden )?(.*)$/\1	\2	\4/' |
 	# Shuffle the order of fields (for sorting and easy reading)
-	# Also strip any .1234 suffix from the symbol name, which seems
-	# to be added with lto, but not without
-	awk -F'\t' '{ sub(/\.[.0-9]*$/, "", $3); printf("%60s %s %s\n", $3, $2, $1); }' |
+	# Also strip any numbers added to the symbol name by the
+	# optimizer
+	awk -F'\t' '{ sub(/\.[.0-9]*$/, ".nnn", $3); gsub(/\.[.0-9]*\]/, ".nnn]", $3); printf("%60s %s %s\n", $3, $2, $1); }' |
 	sort
 }
 
