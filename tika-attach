@@ -32,7 +32,7 @@ fi
 # Hostname or entry in .ssh/config to connect to
 HOST=tika-login
 # Any options to be passed to the final, forwarding ssh connection
-FORWARD_OPTIONS="-R 2222:localhost:22"
+FORWARD_OPTIONS="-R 2220:localhost:22"
 # Remoet command to be passed to the final, forwarding ssh connection
 REMOTE_COMMAND="bin/attach"
 # SSH ControlMaster path for connection sharing. Includes the current
