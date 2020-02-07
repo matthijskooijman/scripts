@@ -17,22 +17,41 @@
 # Alternatively, you can quit minicom manually and then restart it by
 # just pressing enter.
 
-if [ -n "$1" ]; then
-	DEVICE=ttyACM$1
+if [ -z "$1" ]; then
+	DEVICE=/dev/ttyACM0
+elif [ -e "$1" ]; then
+	DEVICE="$1"
+elif [ -e /dev/"$1" ]; then
+	DEVICE=/dev/"$1"
+elif [ -e /dev/serial/"$1" ]; then
+	DEVICE=/dev/serial/"$1"
+elif [ -e /dev/serial/arduino-"$1" ]; then
+	DEVICE=/dev/serial/arduino-"$1"
+elif [ -e /dev/ttyACM$1 ]; then
+	DEVICE=/dev/ttyACM$1
 else
-	DEVICE=ttyACM0
+	echo "Invalid device specified. Examples: "
+	echo "  $(basename $0) /dev/ttyUSB0"
+	echo "  $(basename $0) ttyUSB1"
+	echo "  $(basename $0) 1 (to open /dev/ttyACM1)"
+	echo "  $(basename $0) (to open /dev/ttyACM0)"
+	exit 1
 fi
+
+# Resolve any symlinks
+DEVICE=$(realpath  $DEVICE)
+
 if [ -n "$2" ]; then
 	BAUD=$2
 else
 	BAUD=115200
 fi
-LOG=${HOME}/minicom.cap.${DEVICE}
-PIDFILE=${HOME}/.arduino/console.${DEVICE}.pid
+LOG=${HOME}/minicom.cap.$(basename ${DEVICE})
+PIDFILE=${HOME}/.arduino/console.$(basename ${DEVICE}).pid
 
 while true; do
 	rm -f $LOG
-	minicom -D /dev/$DEVICE -C $LOG -b $BAUD
+	minicom -D $DEVICE -C $LOG -b $BAUD
 	# Wait for enter or USR1
 	(trap exit USR1; sh -c 'echo $PPID' > $PIDFILE; read foo)
 done
