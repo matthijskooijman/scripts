@@ -65,9 +65,11 @@ while true; do
     # subsequent ssh commands reuse this same connection. It autoquits
     # after some seconds idle time (ControlPersist=10).
     if $SSH -A -N -f -o ControlMaster=yes -o ControlPersist=10; then
+        echo "Connected"
         # Figure out local and remote GPG socket paths
         LOCAL_GPG_SOCKET=$(gpgconf --list-dir agent-extra-socket)
         REMOTE_GPG_SOCKET=$($SSH gpgconf --list-dir agent-socket)
+        echo "Got socket info"
 
         # Kill any previous sshd control master still running
         # remotely, to clean up forwarded listening ports, and
@@ -78,6 +80,7 @@ while true; do
              rm -f "$REMOTE_PIDFILE" \; \
              rm -f "$REMOTE_GPG_SOCKET" \; \
              mkdir -p "\$(dirname \"$REMOTE_PIDFILE\")"
+        echo "Killed old sessions"
 
         # Store the PID of the new control master connection and run the
         # actual command. This also sets up all port forwardings. Note
