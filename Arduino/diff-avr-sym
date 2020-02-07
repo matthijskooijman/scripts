@@ -15,8 +15,14 @@ else
 fi
 
 if [ "$#" != 2 ]; then
-	echo "Usage: $0 [section] file1 file2"
+	echo "Usage: $0 [section|--ram|--flash] file1 file2"
 	exit 1
+fi
+
+if [ "$SECTION" = "--ram" ]; then
+	SECTION='(.bss|.data)'
+elif [ "$SECTION" = "--flash" ]; then
+	SECTION='(.text)'
 fi
 
 symbols() {
