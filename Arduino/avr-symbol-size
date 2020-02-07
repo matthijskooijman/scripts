@@ -3,16 +3,22 @@
 # a section to limit to that section only (e.g. .text for flash, .bss
 # for zero-initialized RAM, .data for initialized RAM).
 
-if [ "$#" = 2 ]; then
+if [ "$#" -eq 2 ]; then
 	SECTION=$1
 	shift;
 else
 	SECTION='[^	]*'
 fi
 
-if [ "$#" != 1 ]; then
-	echo "Usage: $0 [section] file"
+if [ "$#" -ne 1 ]; then
+	echo "Usage: $0 [section|--ram|--flash] file"
 	exit 1
+fi
+
+if [ "$SECTION" = "--ram" ]; then
+	SECTION='(.bss|.data)'
+elif [ "$SECTION" = "--flash" ]; then
+	SECTION='(.text)'
 fi
 
 filter() {
