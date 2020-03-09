@@ -27,7 +27,7 @@ fi
 
 symbols() {
 	if file $1 | grep ELF >/dev/null; then
-		avr-objdump --demangle -t $1
+		avr-objdump --demangle -t --special-syms $1
 	else
 		# assume the file is output of avr-objdump already
 		cat $1
