@@ -1,0 +1,90 @@
+#!/bin/sh
+
+
+if [ "$#" -gt 0 ]; then
+  cat <<EOF
+Usage: $(basename $0) [ no options supported ]
+
+This script compiles a single file against all STM32 chips known to
+Arduino_Core_STM32. It should be called from the root of that core
+directory, with the core installed through the Arduino IDE.
+The file to be compiled is "check.h" in the current directory. It is
+intended mostly to do preprocessor-based checks against the CMSIS and
+HAL headers, so make sure to #error (or generate another compiler
+error) when an interesting condition occurs (only output of failed
+compilations are shown)
+
+For example, check.h could contain something like:
+
+   #include <stm32_def.h>
+
+   #if defined(USB_OTG_FS) && !defined(USB_OTG_DCTL_SDIS)
+     #error "Foo"
+   #endif
+EOF
+  exit 1
+fi
+
+FILE_TO_CHECK=check.h
+
+CORE=cores/arduino/stm32
+CMSIS=$(echo $HOME/.arduino15/packages/STM32/tools/CMSIS/*/CMSIS/Core/Include)
+CC=$(echo $HOME/.arduino15/packages/STM32/tools/xpack-arm-none-eabi-gcc/*/bin/arm-none-eabi-gcc)
+
+if ! [ -d "$CORE" ]; then
+  echo "$CORE not found, are you in the top level of a Arduino_Core_STM32 checkout?"
+  exit 1
+fi
+
+if ! [ -d "$CMSIS" ]; then
+  echo "$CMSIS not found, do you have the STM32 core installed in the Arduino IDE?"
+  exit 1
+fi
+
+if ! [ -x "$CC" ]; then
+  echo "$CC not found, do you have the STM32 core installed in the Arduino IDE?"
+  exit 1
+fi
+
+NUM_OK=0
+NUM_FAILED=0
+FAILED=""
+
+for FAMILY in $(cd system; echo STM32*); do
+  # This looks for an if/elif chain in the primary include file for this
+  # family,
+  CMSIS_STM="system/Drivers/CMSIS/Device/ST/$FAMILY/Include";
+  CPUS=$(cat $CMSIS_STM/$(echo $FAMILY| tr '[A-Z]' '[a-z]').h | sed -n 's/^#\(el\)if defined(\(STM32.*\))$/\2/p'|sort)
+
+  for CPU in $(echo $CPUS); do
+    # Build commandline in $@ so we can run *and* print it
+    set -- "$CC" "-D$FAMILY" "-D$CPU" "$FILE_TO_CHECK"
+    set -- "$@" -I "$CMSIS_STM" -I "system/$FAMILY"
+    set -- "$@" -I "system/Drivers/${FAMILY}_HAL_Driver/Inc"
+    set -- "$@" -I "system/Drivers/${FAMILY}_HAL_Driver/Inc"
+    set -- "$@" -I "$CMSIS" -I "$CORE" -I "variants/board_template"
+
+    if [ "$FAMILY" = "STM32H7xx" -o "$FAMILY" = "STM32MP1xx" ]; then
+      # Some of these chips have a M4 *and* M7/A7, for now test only M4
+      set -- "$@" -DCORE_CM4
+    fi
+
+    OUTPUT=$("$@" 2>&1)
+    if [ $? -ne 0 ]; then
+      echo "$CPU: FAILED"
+      echo "$CPU: $@"
+      echo "$OUTPUT" | head
+      echo "(output might be truncated)"
+      NUM_FAILED=$(($NUM_FAILED + 1))
+      FAILED="$FAILED $CPU"
+    else
+      echo "$CPU: OK"
+      NUM_OK=$(($NUM_OK + 1))
+    fi
+  done
+done
+echo "Done. $NUM_OK OK, $NUM_FAILED FAILED"
+if [ -n "$FAILED" ]; then
+  echo "FAILED: $FAILED"
+fi
+
