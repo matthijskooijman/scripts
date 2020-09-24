@@ -34,8 +34,8 @@ filter() {
 	# name).
 	sed -r 's/^[0-9a-f]+ ....... ([^	]*)	([0-9a-f]+) (.*)$/\1	\2	\3/' |
 	# Shuffle the order of fields (for sorting and easy reading)
-	awk -F'\t' '{ printf("%8s %8s %s\n", $2, $1, $3); }' |
-	sort
+	awk -F'\t' '{ printf("%8d %8s %s\n", strtonum("0x" $2), $1, $3); }' |
+	sort -n
 }
 
 avr-objdump -t --demangle "$1" |  filter
