@@ -22,6 +22,8 @@ elif [ "$SECTION" = "--flash" ]; then
 fi
 
 filter() {
+	# Sometimes symbols appear twice fully identical, so strip those
+	sort | uniq |
 	# Drop anything but the request section
 	grep -E "^[0-9a-f]+ ....... $SECTION	" |
 	# Drop debugging symbols
