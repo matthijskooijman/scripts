@@ -9,6 +9,7 @@
 # supports ARM assembler by now.
 
 filter() {
+  AGGRESSIVE=1
   awk "\
     BEGIN { FS=\"\\t\"; OFS=\"\\t\"; }
     /^[0-9a-z]+ <.+>:$/ { # Function headers
@@ -30,8 +31,8 @@ filter() {
         # 8ac:      09 f4           brne    .+2             ; 0x8b0 <schedRx12.lto_priv.156+0x50>
 
         gsub(/[0-9a-f]/, \"x\", \$2);
-        # instruction arguments use uppercase hex for some reason
-        gsub(/0x[0-9a-f]+/, \"0x....\", \$4);
+        sub(/^(0x)?[0-9a-f]+/, \"0x....\", \$4);
+        sub(/\\+0x[0-9a-f]+>$/, \"+0x....>\", \$4);
         sub(/^; 0x[0-9a-f]+ /, \"; 0x....\", \$5);
         sub(/\\+0x[0-9a-f]+>$/, \"+0x....>\", \$5);
         sub(/constprop\.[0-9]+/, \"constprop.(...)\", \$5);
@@ -55,10 +56,23 @@ filter() {
         # 1d4:      4b4a            ldr     r3, [pc, #296]  ; (300 <ResetHandler+0x144>)
         # 958:      f8df 80a0       ldr.w   r8, [pc, #160]  ; 9fc <_ZN6IRrecv10decodeSonyEP14decode_results+0xa8>
 
-        sub(/\\+0x[0-9a-f]+>/, \"+0x....>\", \$5);
         sub(/^; \\([0-9a-f]+ /, \"; (\", \$5);
         sub(/^; [0-9a-f]+ /, \"; \", \$5);
+        if ($AGGRESSIVE) {
+          # Also remove offsets of relative loads
+          gsub(/[0-9a-f]/, \"x\", \$2);
+          sub(/\\+0x[0-9a-f]+>/, \"+0x....>\", \$5);
+          sub(/#[0-9]+/, \"#...\", \$4);
+        }
       }
+      # ARM often uses lookup tables which might also contain addresses,
+      # so remove those as well
+      if ($AGGRESSIVE && \$3 ~ / *\.word$/) {
+        # 80007d4:       000003ff        .word   0x000003ff
+        gsub(/[0-9a-f]/, \"x\", \$2);
+        gsub(/0x[0-9a-f]+/, \"0x....\", \$4);
+      }
+
     }
     { print }" | expand
 }
