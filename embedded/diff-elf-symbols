@@ -4,40 +4,37 @@
 # Compares the presence and size of any non-debug symbols in the given
 # section (or all sections if none given).
 #
-# Pass files containing avr-objdump -t output, or the original .elf
-# files
+# Files to compare must be .elf files
 
 if [ "$#" = 3 ]; then
-	SECTION=$1
+	SECTIONS=$1
 	shift;
 else
-	SECTION='[^	]*'
+	SECTIONS=''
 fi
 
 if [ "$#" != 2 ]; then
-	echo "Usage: $0 [section|--ram|--flash] file1 file2"
+	echo "Usage: $0 [sections|--ram|--flash] file1.elf file2.elf"
 	exit 1
 fi
 
-if [ "$SECTION" = "--ram" ]; then
-	SECTION='(.bss|.data)'
-elif [ "$SECTION" = "--flash" ]; then
-	SECTION='(.text)'
+if [ "$SECTIONS" = "--ram" ]; then
+	SECTIONS='.bss .data .noinit'
+elif [ "$SECTIONS" = "--flash" ]; then
+	SECTIONS='.text'
 fi
 
 symbols() {
-	if file $1 | grep ELF >/dev/null; then
-		avr-objdump --demangle -t --special-syms $1
-	else
-		# assume the file is output of avr-objdump already
-		cat $1
-	fi
+	SECOPTS=
+	for SECTION in $SECTIONS; do
+		SECOPTS="$SECOPTS --section $SECTION"
+	done
+	avr-objdump --demangle -t --special-syms $SECOPTS "$1"
 }
 
-
 filter() {
-	# Drop anything but the request section
-	grep -E "^[0-9a-f]+ ....... $SECTION	" |
+	# Select everything after the table heading
+	sed -n -e '/^SYMBOL TABLE:$/,$ p' | sed 1d |
 	# Drop debugging symbols
 	grep -Ev '^[0-9a-f]+ .....d. ' |
 	# Strip the address and flags, but keep the section, size and
