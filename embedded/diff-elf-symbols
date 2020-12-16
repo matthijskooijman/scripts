@@ -29,7 +29,11 @@ symbols() {
 	for SECTION in $SECTIONS; do
 		SECOPTS="$SECOPTS --section $SECTION"
 	done
-	avr-objdump --demangle -t --special-syms $SECOPTS "$1"
+	if file $1 | grep Atmel.AVR >/dev/null; then
+		avr-objdump --demangle -t --special-syms $SECOPTS "$1"
+	else
+		objdump --demangle -t --special-syms $SECOPTS "$1"
+	fi
 }
 
 filter() {

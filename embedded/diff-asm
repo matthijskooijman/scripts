@@ -78,8 +78,10 @@ filter() {
 }
 
 asm() {
-	if file $1 | grep ELF >/dev/null; then
-		avr-objdump --demangle -d $1
+	if file $1 | grep ELF.*Atmel.AVR >/dev/null; then
+		avr-objdump --demangle -S $1
+	elif file $1 | grep ELF >/dev/null; then
+		objdump --demangle -S $1
 	else
 		# assume the file is output of avr-objdump already
 		cat $1

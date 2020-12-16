@@ -38,5 +38,8 @@ filter() {
 	sort -n
 }
 
-avr-objdump -t --demangle "$1" |  filter
-
+if file $1 | grep ELF.*Atmel.AVR >/dev/null; then
+	avr-objdump -t --demangle "$1" |  filter
+else
+	avr-objdump -t --demangle "$1" |  filter
+fi
