@@ -1,0 +1,70 @@
+#!/bin/bash
+
+FILES="$(cd $(dirname $(realpath "$0")); pwd)/openocd-debug-files"
+CMD="$(basename "$0")"
+
+if [ "$1" = "--start-openocd" ]; then
+	# This is called by gdb / gdb.init, so we can resolve the path the openocd.cfg
+	shift
+	exec openocd "$@" --file "$FILES/openocd.cfg" -c init -c halt
+fi
+
+if [ $(realpath "$0") != $(realpath $(which openocd-debug)) ]; then
+	echo 1>2 'This script must be available as "openocd-debug" in the current path, otherwise gdb.init cannot call back to it.'
+	exit 1
+fi
+
+if [ -z "$OPENOCD_TARGET" -o -z "$OPENOCD_INTERFACE" -o "$1" = "-h" -o "$1" = "--help" ]; then
+	cat <<EOF
+Usage: $CMD [binary.elf] [extra-gdb-arguments]
+
+Additionally, set env vars to configure:
+	OPENOCD_TARGET: the openocd target config filename
+	OPENOCD_TARGET: the openocd interface config filename
+
+The first argument can be an elf file to debug, which must already be
+uploaded to the target. If the first argument is not a valid file, but
+there is a single file matching build/*.elf or build/*/*.elf (e.g.
+produced by arduino-cli compile --export-binaries), that file is
+used automatically.
+
+Any arguments are passed to gdb as-is, and can be used to
+e.g. configure breakpoints.
+
+Examples
+--------
+OPENOCD_INTERFACE=stlink.cfg OPENOCD_TARGET=stm32l0.cfg $CMD -ex "b function_to_break"
+
+OPENOCD_INTERFACE=stlink.cfg # ST-link and nucleo boards with openocd > 0.10
+OPENOCD_INTERFACE=stlink-v1.cfg # Various ST-link versions with openocd <= 0.10
+OPENOCD_INTERFACE=stlink-v2.cfg # Various ST-link versions with openocd <= 0.10
+OPENOCD_INTERFACE=stlink-v2-1.cfg # Various ST-link versions with openocd <= 0.10
+OPENOCD_INTERFACE=cmsis-dap.cfg # Atmel ICE/JTAGICE3/EDBG, Arduino zero
+OPENOCD_TARGET=stm32l0.cfg
+OPENOCD_TARGET=stm32g0x.cfg
+OPENOCD_TARGET=stm32f4x.cfg
+OPENOCD_TARGET=stm32f1x.cfg
+OPENOCD_TARGET=at91samdXX.cfg # Arduino zero
+EOF
+	exit
+fi
+
+if [ ! -f "$1" ]; then
+	shopt -s nullglob
+	elfs=(build/*.elf build/*/*.elf)
+	shopt -u nullglob
+
+	if [ "${#elfs[@]}" -eq 0 ]; then
+		echo 1>&2 "No elf file specified and none found, bailing out"
+		exit 1
+	elif [ "${#elfs[@]}" -gt 1 ]; then
+		echo 1>&2 "No elf file specified and multiple found, bailing out. Found: ${elfs[@]}"
+		exit 1
+	else
+		# No elf file specified but exactly one found, add it to
+		# the gdb commandline
+		set -- "${elfs[0]}" "$@"
+	fi
+fi
+
+exec gdb-multiarch -x "$FILES/gdb.init" "$@"
