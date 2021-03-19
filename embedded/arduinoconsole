@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Copyright 2014 Matthijs Kooijman <matthijs@stdin.nl>
 #
@@ -51,7 +51,15 @@ PIDFILE=${HOME}/.arduino/console.$(basename ${DEVICE}).pid
 
 while true; do
 	rm -f $LOG
-	minicom -D $DEVICE -C $LOG -b $BAUD
+	# This enables monitor mode, which (like when bash is
+	# interactive) creates a process group for any external
+	# commands, which then allows tmux to show that command rather
+	# than just "bash". Then this uses exec -a to set the name of
+	# the command to the device name (in a subshell so this script
+	# continues after the exec).
+	set -o monitor
+	(exec -a "$DEVICE" minicom --wrap -D $DEVICE -C $LOG -b $BAUD)
+	set +o monitor
 	# Wait for enter or USR1
 	(trap exit USR1; sh -c 'echo $PPID' > $PIDFILE; read foo)
 done
