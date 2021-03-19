@@ -47,7 +47,7 @@ else
 	BAUD=115200
 fi
 LOG=${HOME}/minicom.cap.$(basename ${DEVICE})
-PIDFILE=${HOME}/.arduino/console.$(basename ${DEVICE}).pid
+PIDFILE=/run/user/$(id -u)/serial-monitor.$(basename ${DEVICE}).pid
 
 while true; do
 	rm -f $LOG
