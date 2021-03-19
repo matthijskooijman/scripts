@@ -1,0 +1,35 @@
+#!/bin/sh
+
+usage() {
+	cat <<EOF
+Usage: $(basename $0) ttyACMx command [args]
+
+Kills the serial monitor (started with the accompanying serial-moinitor script) on the
+given port, then runs the given argument and restarts the
+console when the command completes.
+
+Typical usage:
+  $(basename $0) ttyACM0 arduino-cli compile --upload -v
+EOF
+}
+
+if [ "$#" -eq 0 -o "$1" = "-h" -o "$1" = "--help" ]; then
+	usage
+	exit 0
+fi
+
+# TODO: Autodetect portname from sketch.json or cli arguments when
+# command is arduino-cli?
+
+PORT=$1
+FULLPORT=/dev/$PORT
+shift
+
+if ! [ -c $FULLPORT ]; then
+	echo "Not a character device file: $FULLPORT"
+	exit 1
+fi
+
+pkill minicom -F /var/lock/LCK..$PORT
+"$@"
+pkill --signal USR1 serial-monitor -F /run/user/$(id -u)/serial-monitor.$PORT.pid
