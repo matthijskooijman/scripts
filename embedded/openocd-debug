@@ -21,6 +21,9 @@ Usage: $CMD [binary.elf] [extra-gdb-arguments]
 Additionally, set env vars to configure:
 	OPENOCD_TARGET: the openocd target config filename
 	OPENOCD_TARGET: the openocd interface config filename
+	OPENOCD_CONNECT_UNDER_RESET: If set, pass connect_assert_srst to
+	                             openocd to work with a target that
+	                             disables SWD at runtime.
 
 The first argument can be an elf file to debug, which must already be
 uploaded to the target. If the first argument is not a valid file, but
