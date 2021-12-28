@@ -1,0 +1,19 @@
+#!/bin/sh
+
+PKG=$1
+ARCH=$(dpkg --print-architecture)
+
+if [ -z "$PKG" ]; then
+	echo "Usage: $0 pkgname [ version ]"
+	echo  "Runs debdiff on the most recent two $ARCH changes files for the given package"
+	exit 1
+fi
+
+# This does not really properly sort using Debian versioning rules and
+# compares to the previous version rather than the previously uploaded
+# version, but doing so is a lot more complicated and this probably
+# works most of the time.
+TO_COMPARE=$(ls ${PKG}_*_$ARCH.changes | sort --version-sort | tail -n 2)
+
+echo debdiff $TO_COMPARE
+exec debdiff $TO_COMPARE
