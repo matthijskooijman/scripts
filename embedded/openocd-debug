@@ -1,12 +1,19 @@
 #!/bin/bash
 
 FILES="$(cd $(dirname $(realpath "$0")); pwd)/openocd-debug-files"
+LOCAL_CONF="$(cd $(dirname $(realpath "$0")); pwd)/local-config.sh"
 CMD="$(basename "$0")"
+GDB=gdb-multiarch
+OPENOCD=openocd
+
+if [ -f "$LOCAL_CONF" ]; then
+  . "$LOCAL_CONF"
+fi
 
 if [ "$1" = "--start-openocd" ]; then
 	# This is called by gdb / gdb.init, so we can resolve the path the openocd.cfg
 	shift
-	exec openocd "$@" --file "$FILES/openocd.cfg" -c init -c halt
+	exec "$OPENOCD" "$@" --file "$FILES/openocd.cfg" -c init -c halt
 fi
 
 if [ $(realpath "$0") != $(realpath $(which openocd-debug)) ]; then
@@ -70,4 +77,4 @@ if [ ! -f "$1" ]; then
 	fi
 fi
 
-exec gdb-multiarch -x "$FILES/gdb.init" "$@"
+exec "$GDB" -x "$FILES/gdb.init" "$@"
