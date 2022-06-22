@@ -54,6 +54,7 @@ OPENOCD_TARGET=stm32l0.cfg
 OPENOCD_TARGET=stm32g0x.cfg
 OPENOCD_TARGET=stm32f4x.cfg
 OPENOCD_TARGET=stm32f1x.cfg
+OPENOCD_TARGET=stm32wlx.cfg
 OPENOCD_TARGET=at91samdXX.cfg # Arduino zero
 EOF
 	exit
