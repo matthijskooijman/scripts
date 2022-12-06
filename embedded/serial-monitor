@@ -64,7 +64,7 @@ while true; do
 	# the command to the device name (in a subshell so this script
 	# continues after the exec).
 	set -o monitor
-	(exec -a "$DEVICE" minicom --wrap -D $DEVICE -C $LOG -b $BAUD -R $CHARSET)
+	(exec -a "$DEVICE" minicom $MINICOM_OPTIONS --wrap -D $DEVICE -C $LOG -b $BAUD -R $CHARSET)
 	set +o monitor
 	# Wait for enter or USR1
 	(trap exit USR1; sh -c 'echo $PPID' > $PIDFILE; read foo)
