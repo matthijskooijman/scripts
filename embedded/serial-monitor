@@ -66,6 +66,7 @@ while true; do
 	set -o monitor
 	(exec -a "$DEVICE" minicom $MINICOM_OPTIONS --wrap -D $DEVICE -C $LOG -b $BAUD -R $CHARSET)
 	set +o monitor
+	echo "$(basename "$0") suspended - press enter to restart"
 	# Wait for enter or USR1
 	(trap exit USR1; sh -c 'echo $PPID' > $PIDFILE; read foo)
 done
