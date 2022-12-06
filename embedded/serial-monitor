@@ -18,35 +18,39 @@
 # Alternatively, you can quit minicom manually and then restart it by
 # just pressing enter.
 
-if [ -z "$1" ]; then
-	DEVICE=/dev/ttyACM0
-elif [ -e "$1" ]; then
-	DEVICE="$1"
-elif [ -e /dev/"$1" ]; then
-	DEVICE=/dev/"$1"
-elif [ -e /dev/serial/"$1" ]; then
-	DEVICE=/dev/serial/"$1"
-elif [ -e /dev/serial/arduino-"$1" ]; then
-	DEVICE=/dev/serial/arduino-"$1"
-elif [ -e /dev/ttyACM$1 ]; then
-	DEVICE=/dev/ttyACM$1
-else
-	echo "Invalid device specified. Examples: "
-	echo "  $(basename $0) /dev/ttyUSB0"
-	echo "  $(basename $0) ttyUSB1"
-	echo "  $(basename $0) 1 (to open /dev/ttyACM1)"
-	echo "  $(basename $0) (to open /dev/ttyACM0)"
-	exit 1
-fi
+DEVICE=/dev/ttyACM0
+BAUD=115200
+
+for arg in "$@"; do
+	if [ -c "$arg" ]; then
+		DEVICE="$arg"
+	elif [ -e /dev/"$arg" ]; then
+		DEVICE=/dev/"$arg"
+	elif [ -c /dev/serial/"$arg" ]; then
+		DEVICE=/dev/serial/"$arg"
+	elif [ -c /dev/serial/arduino-"$arg" ]; then
+		DEVICE=/dev/serial/arduino-"$arg"
+	elif [ -c /dev/ttyACM$arg ]; then
+		DEVICE=/dev/ttyACM$arg
+	elif [ -c /dev/ttyUSB$arg ]; then
+		DEVICE=/dev/ttyUSB$arg
+	elif [[ $arg =~ ^[0-9]+$ ]]; then
+		BAUD=$arg
+	else
+		echo "Unknown argument ($arg). Examples: "
+		echo "  $(basename $0) /dev/ttyUSB0 9600"
+		echo "  $(basename $0) ttyUSB1"
+		echo "  $(basename $0) 57600 ttyACM2"
+		echo "  $(basename $0) 57600   # (opens ttyACM0)"
+		echo "  $(basename $0) 1       # (opens /dev/ttyACM1 or /dev/ttyUSB1)"
+		echo "  $(basename $0)         # (opens /dev/ttyACM0)"
+		exit 1
+	fi
+done
 
 # Resolve any symlinks
 DEVICE=$(realpath  $DEVICE)
 
-if [ -n "$2" ]; then
-	BAUD=$2
-else
-	BAUD=115200
-fi
 LOG=${HOME}/minicom.cap.$(basename ${DEVICE})
 PIDFILE=/run/user/$(id -u)/serial-monitor.$(basename ${DEVICE}).pid
 CHARSET=utf8
