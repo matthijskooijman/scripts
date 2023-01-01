@@ -1,0 +1,49 @@
+#!/bin/sh
+
+# This script takes a scanned PDF of double-sided pages that have been
+# scanned by an ADF (manually doing duplex scanning by first scanning
+# all front sides and then all back sides) and produces a PDF with the
+# pages in the right order.
+#
+# The back sides are expected to be in reverse order (because you
+# reverse the entire stack to scan the back sides, not each sheet
+# individually).
+#
+# This script needs the pdftk to be installed.
+#
+# Permission is hereby granted, free of charge, to anyone obtaining a copy
+# of this document and accompanying files, to do whatever they want with
+# them without any restriction, including, but not limited to, copying,
+# modification and redistribution.
+#
+# NO WARRANTY OF ANY KIND IS PROVIDED.
+
+INPUT="$1"
+OUTPUT="$2"
+
+if [ -z "$INPUT" -o -z "$OUTPUT" -o "$1" = "-h" -o "$1" = "--help" ]; then
+    echo "usage: $0 INPUT.pdf OUTPUT.pdf"
+    echo "INPUT.pdf should have an even number of pages, first all odd (front) pages, followed by all even (back) pages."
+    echo "OUTPUT.pdf will have the pages in the right order."
+    exit 1
+fi
+
+if ! [ -e "$INPUT" ]; then
+    echo "Input file not found: $INPUT"
+    exit 1
+fi
+
+if [ -e "$OUTPUT" ]; then
+    echo "Output already exists: $OUTPUT"
+    exit 1
+fi
+
+
+PAGES=$(pdftk "$INPUT" dump_data 2>/dev/null | grep NumberOfPages | awk '{print $2}' | tr -dc '[0-9]')
+
+if [ -z "$PAGES" ]; then
+    echo "Failed to detect number of pages"
+    exit 1
+fi
+
+pdftk "$INPUT" shuffle 1-$(($PAGES / 2)) end-$(($PAGES / 2 + 1)) output "$OUTPUT" verbose
