@@ -31,7 +31,8 @@ filter() {
         # 8ac:      09 f4           brne    .+2             ; 0x8b0 <schedRx12.lto_priv.156+0x50>
 
         gsub(/[0-9a-f]/, \"x\", \$2);
-        sub(/^(0x)?[0-9a-f]+/, \"0x....\", \$4);
+        # Use gensub to allow backreferences in replacement text
+        \$4 = gensub(/(^|, )(0x)?[0-9a-f]+(,| )/, \"\\\\1\\\\2....\\\\3\", \"g\", \$4);
         sub(/\\+0x[0-9a-f]+>$/, \"+0x....>\", \$4);
         sub(/^; 0x[0-9a-f]+ /, \"; 0x....\", \$5);
         sub(/\\+0x[0-9a-f]+>$/, \"+0x....>\", \$5);
@@ -52,7 +53,7 @@ filter() {
       }
       # ARM uses ldr to load addresses for relative jumps, meaning we
       # can leave the offset, just have to clear the absolute address.
-      if (\$3 ~ / *(ldr.*|add)$/ && \$4 ~ /pc/) {
+      if (\$3 ~ /^ *(ldr.*|add)$/ && \$4 ~ /pc/) {
         # 1d4:      4b4a            ldr     r3, [pc, #296]  ; (300 <ResetHandler+0x144>)
         # 958:      f8df 80a0       ldr.w   r8, [pc, #160]  ; 9fc <_ZN6IRrecv10decodeSonyEP14decode_results+0xa8>
 
@@ -65,6 +66,11 @@ filter() {
           sub(/#[0-9]+/, \"#...\", \$4);
         }
       }
+      if (\$3 ~ /^ *(add)$/ && \$5 ~ /^; \(adr /) {
+        #  80029fe:       a33e            add     r3, pc, #248    ; (adr r3, 8002af8 <SX126x::setBandwidth(float)+0x130>)
+        sub(/, [0-9a-f]+ /, \", .... \", \$5);
+      }
+
       # ARM often uses lookup tables which might also contain addresses,
       # so remove those as well
       if ($AGGRESSIVE && \$3 ~ / *\.word$/) {
