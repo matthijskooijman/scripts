@@ -98,4 +98,10 @@ FIRST="$1"
 SECOND="$2"
 shift; shift
 
-grc --colour=on diff -F '^<.*>:$' -u "$@" <(asm "$FIRST" | filter) <(asm "$SECOND" | filter)
+if [ -n "$FIRST" -a -z "$SECOND" ]; then
+  # If just one file passed, filter that (mainly useful during
+  # development of this script)
+  asm "$FIRST" | filter
+else
+  grc --colour=on diff -F '^<.*>:$' -u "$@" <(asm "$FIRST" | filter) <(asm "$SECOND" | filter)
+fi
