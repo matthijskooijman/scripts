@@ -31,6 +31,9 @@ Additionally, set env vars to configure:
 	OPENOCD_CONNECT_UNDER_RESET: If set, pass connect_assert_srst to
 	                             openocd to work with a target that
 	                             disables SWD at runtime.
+	OPENOCD_TRANSPORT: Passed as the transport name (using transport
+			   select). Set to e.g. "swd" to force SWD mode
+	                   with adapters that support both JTAG and SWD.
 
 The first argument can be an elf file to debug, which must already be
 uploaded to the target. If the first argument is not a valid file, but
@@ -56,6 +59,9 @@ OPENOCD_TARGET=stm32f4x.cfg
 OPENOCD_TARGET=stm32f1x.cfg
 OPENOCD_TARGET=stm32wlx.cfg
 OPENOCD_TARGET=at91samdXX.cfg # Arduino zero
+OPENOCD_TRANSPORT=swd # Force transport for interfaces that support multiple
+OPENOCD_TRANSPORT=jtag
+OPENOCD_CONNECT_UNDER_RESET=1 # Needed for some boards
 EOF
 	exit
 fi
