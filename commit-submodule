@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# Commit updates to a submodule in the containing repository.
+#
+# To use this script, make sure any changes to a submodule are
+# commited or pulled in the submodule itself and ready to be committed
+# to the containing repository. Then run this script (can be done from
+# anywhere) and pass the path to the submodule, which generates a commit
+# message and commits (just) the submodule.
+#
+# If changes are needed in the containing repository to accomodate the
+# new submodule version, those changes can be amended into the
+# generated commit.
+
+SUBMODULE_DIR=$(cd "$1" && pwd)
+TOP_DIR=$(cd "${SUBMODULE_DIR}" && git rev-parse --show-superproject-working-tree)
+SUBMODULE_NAME=$(realpath --relative-to "${TOP_DIR}" "${SUBMODULE_DIR}")
+GIT_DIR="${TOP_DIR}/.git"
+
+HEAD=$(git --git-dir "${TOP_DIR}/.git" rev-parse HEAD:$SUBMODULE_NAME)
+WC=$(git --git-dir "${SUBMODULE_DIR}/.git" rev-parse HEAD)
+
+if [ -z "$HEAD" -o -z "$WC" ]; then
+  echo "Failed to get submodule info..."
+  exit 1
+fi
+
+MSG=$(\
+	echo "#Note: If changes *are* needed, amend this commit and update the message accordingly." && \
+	echo "$SUBMODULE_NAME: Update (no additional changes needed)" && \
+	echo && \
+	echo "This includes the following commits:" && \
+	echo && \
+	git --git-dir "${SUBMODULE_DIR}/.git" log --reverse --pretty="format:%h %s" "${HEAD}..${WC}" \
+)
+
+cd "${TOP_DIR}" && git commit --edit --message "$MSG" "${SUBMODULE_DIR}"
