@@ -43,6 +43,7 @@
 import argparse
 import csv
 import itertools
+import re
 import sys
 from xml.etree import ElementTree
 
@@ -51,10 +52,6 @@ from xml.etree import ElementTree
 DEFAULT_GPIO_MODES = {'Input', 'Output', 'Analog'}
 # Sort signal types in this order
 ORDER = ["GPIO", "EXTI", "ADC", "DAC", "TIM", "LPTIM", "UART", "USART", "LPUART", "SPI", "I2C"]
-NAMESPACES = {
-    # Use this as the default namespace on all tags used in searches below
-    '': 'http://mcd.rou.st.com/modules.php?name=mcu',
-}
 
 # TODO: It could be good to (also) support sorting signals by AF index.
 # This requires reading from one more xml file, see
@@ -79,6 +76,19 @@ def main():
     writer = csv.writer(sys.stdout)
 
     root = ElementTree.parse(args.filename).getroot()
+
+    # This extracts the default namespace (xmlns="") from the root
+    # element, as that is implicitly prefixed on all elements. By
+    # putting that into NAMESPACES and passing that to all find calls,
+    # the tag names in our find queries are also prefixed with the same
+    # ns and will actually match.
+    NAMESPACES = {}
+    match = re.match(r'{(.*)}.*', root.tag)
+    if match:
+        NAMESPACES[''] = match.group(1)
+    else:
+        sys.stderr.write("WARNING: No xmlns tag found in root element\n")
+
     writer.writerow(('name', 'pin', 'type'))
     for elem in root.iterfind('Pin', NAMESPACES):
         signals = []
