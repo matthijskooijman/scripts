@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# This script puts the contents of the given files (or stdin if no filenames
+# are passed) onto the system clipboard.
+
+cat "$@" | ( [ -n "$WAYLAND_DISPLAY" ] && wl-copy || xsel --input --clipboard)
