@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# This script starts a command and scans it stdout for a traceback. If found
+# and the command terminates, the traceback is sent to the nvim-unstack plugin
+# via the clipboard, which can parse the traceback and open the relevant files
+# (or put it in the quickfix list, depending on how it was configured).
+#
+# Currently only Python tracebacks are recognized by this script, but this can
+# be expanded later (nvim-unstack knows more kinds).
+#
+# To make this work, the vim instance must be started with remote access using
+# `--listen ./vim.socket`, started in the same directory as where this script
+# is started. This could maybe be made a bit more flexible in the future as well.
+
+# Hardcoded for now
+SOCKET=./vim-socket
+TRACE=$(mktemp vim-traceback-XXXXXX)
+
+process_stderr() {
+	while read -r; do
+		echo "$REPLY" > /dev/stderr
+		if [[ -s "$TRACE" || "$REPLY" == Traceback* ]]; then
+			echo "$REPLY" >> "$TRACE"
+		fi
+	done
+}
+
+
+echo "Looking for Python traceback in command output, passed to vim started with \`--listen $SOCKET\` option."
+
+"$@" 2> >(process_stderr)
+
+if [[ -s "$TRACE" ]]; then
+	echo
+	echo "Found traceback, sending to vim via clipboard"
+
+	# TODO: Not use the clipboard if https://github.com/relf108/nvim-unstack/issues/6 is implemented.
+	# This uses the https://github.com/matthijskooijman/scripts/blob/master/clipboard script
+	clipboard "$TRACE"
+
+	# This triggers https://github.com/relf108/nvim-unstack
+	vim --server ./vim.socket --remote-expr 'execute(":UnstackFromClipboard")'
+fi
