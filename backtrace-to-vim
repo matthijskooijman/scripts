@@ -11,6 +11,9 @@
 # To make this work, the vim instance must be started with remote access using
 # `--listen ./vim.socket`, started in the same directory as where this script
 # is started. This could maybe be made a bit more flexible in the future as well.
+#
+# This script is intended to work with neovim's RPC access, but could probably
+# be easily modified to work with the original vim clientserver mode.
 
 # Hardcoded for now
 SOCKET=./vim-socket
