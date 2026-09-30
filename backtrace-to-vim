@@ -29,13 +29,14 @@ process_stderr() {
 }
 
 
-echo "Looking for Python traceback in command output, passed to vim started with \`--listen $SOCKET\` option."
+echo ">>> Looking for Python traceback in command output, passed to vim started with \`--listen $SOCKET\` option. <<<<"
+echo
 
 "$@" 2> >(process_stderr)
 
 if [[ -s "$TRACE" ]]; then
 	echo
-	echo "Found traceback, sending to vim via clipboard"
+	echo ">>> Found traceback, sending to vim via clipboard <<<"
 
 	# TODO: Not use the clipboard if https://github.com/relf108/nvim-unstack/issues/6 is implemented.
 	# This uses the https://github.com/matthijskooijman/scripts/blob/master/clipboard script
