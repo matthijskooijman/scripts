@@ -14,10 +14,23 @@
 #
 # This script is intended to work with neovim's RPC access, but could probably
 # be easily modified to work with the original vim clientserver mode.
+#
+# This needs the nvim-unstack plugin (from
+# https://github.com/relf108/nvim-unstack), version 1.5.0 or newer.
 
 # Hardcoded for now
 SOCKET=./vim-socket
-TRACE=$(mktemp vim-traceback-XXXXXX)
+TRACE=$(mktemp --tmpdir vim-traceback-XXXXXX)
+
+# Sanity check of the TRACE variable. It would be better to properly encode the
+# path when inserting in into the vim command, but that would require more
+# thorough understanding of the quoting rules for both the vim expression and
+# the command contained in it. Since this temp path should not contain funny
+# stuff, this is easier.
+if [[ ! "$TRACE" =~ ^[A-Za-z0-9/_-]+$ ]]; then
+	echo "ERROR: Generated temp path ($TRACE) contains funny characters, might cause issues in vim"
+	exit 1
+fi
 
 process_stderr() {
 	while read -r; do
@@ -36,14 +49,16 @@ echo
 
 if [[ -s "$TRACE" ]]; then
 	echo
-	echo ">>> Found traceback, sending to vim via clipboard <<<"
-
-	# TODO: Not use the clipboard if https://github.com/relf108/nvim-unstack/issues/6 is implemented.
-	# This uses the https://github.com/matthijskooijman/scripts/blob/master/clipboard script
-	clipboard "$TRACE"
-
-	rm "$TRACE"
+	echo ">>> Found traceback, sending to vim <<<"
 
 	# This triggers https://github.com/relf108/nvim-unstack
-	vim --server ./vim.socket --remote-expr 'execute(":UnstackFromClipboard")'
+	# XXX: This does not do any proper escaping/encoding of $TRACE, which
+	# should be ok since it is checked to only contain simple characters
+	# above.
+	vim --server ./vim.socket --remote-expr "execute(\":UnstackFromFile $TRACE\")"
+	# Unsure if the vim command blocks until the unstack is done, so wait
+	# before removing the file just to be sure.
+	sleep 0.5
 fi
+
+rm "$TRACE"
